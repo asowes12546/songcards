@@ -48,7 +48,7 @@ const SONGS = {};
 const $ = id => document.getElementById(id);
 const msg = t => $("msg").textContent = t;
 
-let api = null, ctrl = null, wantPlay = false;
+let api = null, ctrl = null, wantPlay = false, fixStart = false;
 window.onSpotifyIframeApiReady = (IFrameAPI) => { api = IFrameAPI; };
 
 function extractTrackId(text){
@@ -66,6 +66,7 @@ function startPlay(){
 function loadTrack(id){
   const uri = "spotify:track:" + id;
   wantPlay = true;
+  fixStart = true;
   if(!api){
     // 備援：API 沒載入時，用一般嵌入（需手動按播放）
     $("player").innerHTML = '<iframe src="https://open.spotify.com/embed/track/' + id +
@@ -76,6 +77,14 @@ function loadTrack(id){
     api.createController($("embed"), {uri, width:"100%", height:152}, c => {
       ctrl = c;
       ctrl.addListener("ready", () => { if(wantPlay) startPlay(); });
+      // Spotify 會記住上次進度；開始播放後若不在開頭，就跳回 0 秒（只修正一次）
+      ctrl.addListener("playback_update", e => {
+        const d = e && e.data;
+        if(fixStart && d && !d.isPaused){
+          fixStart = false;
+          if(d.position > 1500){ try{ ctrl.seek(0); }catch(err){} }
+        }
+      });
       setTimeout(startPlay, 800);
     });
   } else {

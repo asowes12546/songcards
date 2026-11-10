@@ -8,14 +8,13 @@
 :root{--bg:#fff;--fg:#1a1a1a;--card:#f2f2f2;--accent:#1db954;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121212;--fg:#f0f0f0;--card:#242424}}
 :root[data-theme="dark"]{--bg:#121212;--fg:#f0f0f0;--card:#242424}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font-family:system-ui,"Noto Sans TC",sans-serif;max-width:520px;margin-inline:auto}
 h1{font-size:20px}
 button,input{font:inherit;padding:10px 14px;border-radius:8px;border:1px solid #8886}
 button{background:var(--accent);color:#000;border:0;cursor:pointer}
 input{width:100%;box-sizing:border-box;background:var(--card);color:var(--fg);margin:6px 0}
 .box{background:var(--card);border-radius:12px;padding:12px;margin:12px 0}
-video{width:100%;border-radius:8px;display:none;background:#000}
+video{width:100%;border-radius:8px;display:none;background:#000;margin-top:8px}
 #msg{min-height:1.4em;font-size:14px}
 iframe{width:100%;height:152px;border:0;border-radius:12px}
 </style>
@@ -29,24 +28,28 @@ iframe{width:100%;height:152px;border:0;border-radius:12px}
   <canvas id="canvas" hidden></canvas>
 </div>
 
+<div id="msg"></div>
+<div id="player"><div id="embed"></div></div>
+<div id="info" class="box" hidden></div>
+
 <div class="box">
-  <div>沒有鏡頭或掃不到時，可以直接貼 Spotify 歌曲連結測試：</div>
+  <div>掃不到時，可以貼 Spotify 歌曲連結測試：</div>
   <input id="link" placeholder="https://open.spotify.com/track/…">
   <button id="playBtn">播放</button>
 </div>
 
-<div id="msg"></div>
-<div id="player"></div>
-<div id="info" class="box" hidden></div>
-
+<script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
-// 自訂歌單：以 Spotify 曲目 ID 為鍵，之後可以往這裡新增
+// 自訂歌單：以 Spotify 曲目 ID 為鍵
 // 例如："曲目ID": {title:"歌名", artist:"歌手", year:1998}
 const SONGS = {};
 
 const $ = id => document.getElementById(id);
 const msg = t => $("msg").textContent = t;
+
+let api = null, ctrl = null, wantPlay = false;
+window.onSpotifyIframeApiReady = (IFrameAPI) => { api = IFrameAPI; };
 
 function extractTrackId(text){
   let m = text.match(/open\.spotify\.com\/(?:intl-[a-z-]+\/)?track\/([A-Za-z0-9]{22})/);
@@ -55,14 +58,37 @@ function extractTrackId(text){
   return m ? m[1] : null;
 }
 
+function startPlay(){
+  if(!ctrl) return;
+  try{ ctrl.play(); }catch(e){}
+}
+
+function loadTrack(id){
+  const uri = "spotify:track:" + id;
+  wantPlay = true;
+  if(!api){
+    // 備援：API 沒載入時，用一般嵌入（需手動按播放）
+    $("player").innerHTML = '<iframe src="https://open.spotify.com/embed/track/' + id +
+      '" allow="encrypted-media; autoplay"></iframe>';
+    return;
+  }
+  if(!ctrl){
+    api.createController($("embed"), {uri, width:"100%", height:152}, c => {
+      ctrl = c;
+      ctrl.addListener("ready", () => { if(wantPlay) startPlay(); });
+      setTimeout(startPlay, 800);
+    });
+  } else {
+    ctrl.loadUri(uri);
+    setTimeout(startPlay, 800);
+  }
+}
+
 function play(text){
   const id = extractTrackId(text);
   if(!id){ msg("讀到的內容不是 Spotify 歌曲連結：" + text.slice(0,80)); return false; }
   msg("");
-  $("player").innerHTML =
-    '<iframe src="https://open.spotify.com/embed/track/' + id +
-    '" allow="encrypted-media; autoplay" loading="eager"></iframe>' +
-    '<p><a href="https://open.spotify.com/track/' + id + '" target="_blank" rel="noopener">在 Spotify 開啟</a></p>';
+  loadTrack(id);
   const info = $("info"), s = SONGS[id];
   info.hidden = false;
   if(s){
@@ -72,6 +98,7 @@ function play(text){
   } else {
     info.textContent = "這首歌還沒登錄在歌單裡（曲目 ID：" + id + "）";
   }
+  $("scanBtn").textContent = "掃描下一張";
   return true;
 }
 
@@ -98,13 +125,11 @@ $("scanBtn").onclick = async () => {
       ctx.drawImage(v, 0, 0, c.width, c.height);
       const img = ctx.getImageData(0, 0, c.width, c.height);
       const code = jsQR(img.data, img.width, img.height);
-      if(code && code.data){
-        if(play(code.data)){
-          scanning = false;
-          stream.getTracks().forEach(t => t.stop());
-          v.style.display = "none";
-          return;
-        }
+      if(code && code.data && play(code.data)){
+        scanning = false;
+        stream.getTracks().forEach(t => t.stop());
+        v.style.display = "none";
+        return;
       }
     }
     requestAnimationFrame(tick);

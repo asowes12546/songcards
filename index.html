@@ -29,6 +29,7 @@ video{width:100%;border-radius:8px;display:none;background:#000;margin-top:8px}
   <canvas id="canvas" hidden></canvas>
 </div>
 
+<div class="box"><button id="pauseBtn">⏸ 暫停</button> <button id="resumeBtn">▶ 繼續</button> <button id="fsBtn">⛶ 全螢幕</button></div>
 <div id="msg"></div>
 <div id="info" class="box" hidden></div>
 
@@ -43,14 +44,26 @@ video{width:100%;border-radius:8px;display:none;background:#000;margin-top:8px}
 const CLIENT_ID = "363209014a5b4083a42c931a67e4d726";
 const REDIRECT = "https://asowes12546.github.io/songcards/";
 const SCOPES = "user-modify-playback-state user-read-playback-state";
-// 自訂歌單：以 Spotify 曲目 ID 為鍵，例如 "曲目ID": {title:"歌名", artist:"歌手", year:1998}
+// 歌單從 songs.txt 載入，每行格式：Spotify連結 | 歌名 | 歌手 | 年份
 const SONGS = {};
+async function loadSongs(){
+  try{
+    const r = await fetch("songs.txt?t=" + Date.now());
+    if(!r.ok) return;
+    (await r.text()).split(/\r?\n/).forEach(line => {
+      const p = line.split("|").map(x => x.trim());
+      const id = extractTrackId(p[0] || "");
+      if(id && p.length >= 4) SONGS[id] = {title:p[1], artist:p[2], year:p[3]};
+    });
+  }catch(e){}
+}
 
 const $ = id => document.getElementById(id);
 const msg = t => $("msg").textContent = t;
 const store = {
   get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
-  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
 
 /* ---------- Spotify 授權（PKCE，不需要後端） ---------- */
@@ -96,9 +109,20 @@ async function getToken(){
   if(Date.now() > Number(store.get("exp") || 0)){
     const rt = store.get("rt");
     if(!rt) return null;
-    try{ await tokenReq({grant_type:"refresh_token", refresh_token:rt}); }catch(e){ return null; }
+    try{ await tokenReq({grant_type:"refresh_token", refresh_token:rt}); }
+    catch(e){ if(e instanceof TypeError) throw new Error("net"); return null; }
   }
   return store.get("at");
+}
+
+function authLost(){
+  ["at","rt","exp"].forEach(k => store.del(k));
+  renderAuth();
+  msg("登入已失效，請重新按「連接 Spotify」。");
+}
+function handleErr(e){
+  if(e && e.message === "net") msg("網路不穩，請稍後再試一次。");
+  else authLost();
 }
 
 function renderAuth(){
@@ -119,7 +143,7 @@ async function playTrack(id){
   const body = JSON.stringify({uris:["spotify:track:" + id], position_ms:0});
   let r;
   try{ r = await spot("/me/player/play", {method:"PUT", body}); }
-  catch(e){ msg("請先按「連接 Spotify」。"); renderAuth(); return; }
+  catch(e){ handleErr(e); return; }
 
   if(r.status === 404){
     // 沒有使用中的裝置：改找手機上的 Spotify APP 來播
@@ -132,11 +156,26 @@ async function playTrack(id){
   if(r.ok){ msg("播放中 ▶"); return; }
   let detail = "";
   try{ detail = (await r.json()).error.message || ""; }catch(e){}
-  if(r.status === 401) msg("登入已失效，請重新按「連接 Spotify」。");
+  if(r.status === 401) authLost();
   else if(r.status === 403) msg("Spotify 拒絕了這個請求（" + detail + "）。請確認帳號是 Premium，且已加入 User Management。");
   else if(r.status === 429) msg("請求太頻繁，請稍等幾秒再掃。");
   else msg("播放失敗（" + r.status + "）" + detail);
 }
+
+async function ctl(path, okText){
+  try{
+    const r = await spot(path, {method:"PUT"});
+    if(r.ok) msg(okText); else msg("操作失敗（" + r.status + "）");
+  }catch(e){ handleErr(e); }
+}
+$("pauseBtn").onclick = () => ctl("/me/player/pause", "已暫停 ⏸");
+$("resumeBtn").onclick = () => ctl("/me/player/play", "播放中 ▶");
+$("fsBtn").onclick = () => {
+  if(document.fullscreenElement){ document.exitFullscreen(); return; }
+  const d = document.documentElement;
+  if(d.requestFullscreen) d.requestFullscreen().catch(() => msg("無法進入全螢幕。"));
+  else msg("這個瀏覽器不支援全螢幕。");
+};
 
 /* ---------- 掃描與顯示 ---------- */
 function extractTrackId(text){
@@ -199,6 +238,7 @@ $("scanBtn").onclick = async () => {
   tick();
 };
 
+loadSongs();
 (async () => { await handleRedirect(); renderAuth(); })();
 </script>
 </body>

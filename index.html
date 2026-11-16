@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>猜歌卡片掃描測試</title>
+<title>猜歌卡片掃描</title>
 <style>
 :root{--bg:#fff;--fg:#1a1a1a;--card:#f2f2f2;--accent:#1db954;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121212;--fg:#f0f0f0;--card:#242424}}
@@ -15,12 +15,13 @@ button{background:var(--accent);color:#000;border:0;cursor:pointer}
 input{width:100%;box-sizing:border-box;background:var(--card);color:var(--fg);margin:6px 0}
 .box{background:var(--card);border-radius:12px;padding:12px;margin:12px 0}
 video{width:100%;border-radius:8px;display:none;background:#000;margin-top:8px}
-#msg{min-height:1.4em;font-size:14px}
-iframe{width:100%;height:152px;border:0;border-radius:12px}
+#msg{min-height:1.4em;font-size:15px}
 </style>
 </head>
 <body>
-<h1>🎵 猜歌卡片掃描測試</h1>
+<h1>🎵 猜歌卡片掃描</h1>
+
+<div class="box" id="authBox"></div>
 
 <div class="box">
   <button id="scanBtn">開啟鏡頭掃描 QR code</button>
@@ -29,7 +30,6 @@ iframe{width:100%;height:152px;border:0;border-radius:12px}
 </div>
 
 <div id="msg"></div>
-<div id="player"><div id="embed"></div></div>
 <div id="info" class="box" hidden></div>
 
 <div class="box">
@@ -38,19 +38,107 @@ iframe{width:100%;height:152px;border:0;border-radius:12px}
   <button id="playBtn">播放</button>
 </div>
 
-<script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
-// 自訂歌單：以 Spotify 曲目 ID 為鍵
-// 例如："曲目ID": {title:"歌名", artist:"歌手", year:1998}
+const CLIENT_ID = "363209014a5b4083a42c931a67e4d726";
+const REDIRECT = "https://asowes12546.github.io/songcards/";
+const SCOPES = "user-modify-playback-state user-read-playback-state";
+// 自訂歌單：以 Spotify 曲目 ID 為鍵，例如 "曲目ID": {title:"歌名", artist:"歌手", year:1998}
 const SONGS = {};
 
 const $ = id => document.getElementById(id);
 const msg = t => $("msg").textContent = t;
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+};
 
-let api = null, ctrl = null, wantPlay = false, fixStart = false;
-window.onSpotifyIframeApiReady = (IFrameAPI) => { api = IFrameAPI; };
+/* ---------- Spotify 授權（PKCE，不需要後端） ---------- */
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf)))
+  .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 
+async function login(){
+  const verifier = b64u(crypto.getRandomValues(new Uint8Array(48)));
+  store.set("verifier", verifier);
+  const challenge = b64u(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  const p = new URLSearchParams({client_id:CLIENT_ID, response_type:"code", redirect_uri:REDIRECT,
+    scope:SCOPES, code_challenge_method:"S256", code_challenge:challenge});
+  location.href = "https://accounts.spotify.com/authorize?" + p;
+}
+
+async function tokenReq(params){
+  const r = await fetch("https://accounts.spotify.com/api/token", {
+    method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({client_id:CLIENT_ID, ...params})
+  });
+  const j = await r.json();
+  if(!r.ok) throw new Error(j.error_description || j.error || r.status);
+  store.set("at", j.access_token);
+  store.set("exp", String(Date.now() + j.expires_in*1000 - 60000));
+  if(j.refresh_token) store.set("rt", j.refresh_token);
+}
+
+async function handleRedirect(){
+  const q = new URLSearchParams(location.search);
+  const code = q.get("code"), err = q.get("error");
+  if(!code && !err) return;
+  history.replaceState(null, "", REDIRECT);
+  if(err){ msg("授權失敗：" + err); return; }
+  try{
+    await tokenReq({grant_type:"authorization_code", code, redirect_uri:REDIRECT,
+      code_verifier:store.get("verifier") || ""});
+  }catch(e){ msg("登入失敗：" + e.message); }
+}
+
+async function getToken(){
+  if(!store.get("at")) return null;
+  if(Date.now() > Number(store.get("exp") || 0)){
+    const rt = store.get("rt");
+    if(!rt) return null;
+    try{ await tokenReq({grant_type:"refresh_token", refresh_token:rt}); }catch(e){ return null; }
+  }
+  return store.get("at");
+}
+
+function renderAuth(){
+  const ok = !!store.get("at");
+  $("authBox").innerHTML = ok ? "✅ 已連接 Spotify" : '<button id="loginBtn">連接 Spotify</button>';
+  if(!ok) $("loginBtn").onclick = login;
+}
+
+/* ---------- 播放 ---------- */
+async function spot(path, opt){
+  const t = await getToken();
+  if(!t) throw new Error("auth");
+  return fetch("https://api.spotify.com/v1" + path,
+    {...opt, headers:{Authorization:"Bearer " + t, "Content-Type":"application/json"}});
+}
+
+async function playTrack(id){
+  const body = JSON.stringify({uris:["spotify:track:" + id], position_ms:0});
+  let r;
+  try{ r = await spot("/me/player/play", {method:"PUT", body}); }
+  catch(e){ msg("請先按「連接 Spotify」。"); renderAuth(); return; }
+
+  if(r.status === 404){
+    // 沒有使用中的裝置：改找手機上的 Spotify APP 來播
+    let list = [];
+    try{ list = (await (await spot("/me/player/devices")).json()).devices || []; }catch(e){}
+    const dev = list.find(x => x.type === "Smartphone") || list[0];
+    if(!dev){ msg("找不到 Spotify 裝置。請先打開手機的 Spotify APP，隨便播一首歌，再重新掃描。"); return; }
+    r = await spot("/me/player/play?device_id=" + dev.id, {method:"PUT", body});
+  }
+  if(r.ok){ msg("播放中 ▶"); return; }
+  let detail = "";
+  try{ detail = (await r.json()).error.message || ""; }catch(e){}
+  if(r.status === 401) msg("登入已失效，請重新按「連接 Spotify」。");
+  else if(r.status === 403) msg("Spotify 拒絕了這個請求（" + detail + "）。請確認帳號是 Premium，且已加入 User Management。");
+  else if(r.status === 429) msg("請求太頻繁，請稍等幾秒再掃。");
+  else msg("播放失敗（" + r.status + "）" + detail);
+}
+
+/* ---------- 掃描與顯示 ---------- */
 function extractTrackId(text){
   let m = text.match(/open\.spotify\.com\/(?:intl-[a-z-]+\/)?track\/([A-Za-z0-9]{22})/);
   if(m) return m[1];
@@ -58,46 +146,11 @@ function extractTrackId(text){
   return m ? m[1] : null;
 }
 
-function startPlay(){
-  if(!ctrl) return;
-  try{ ctrl.play(); }catch(e){}
-}
-
-function loadTrack(id){
-  const uri = "spotify:track:" + id;
-  wantPlay = true;
-  fixStart = true;
-  if(!api){
-    // 備援：API 沒載入時，用一般嵌入（需手動按播放）
-    $("player").innerHTML = '<iframe src="https://open.spotify.com/embed/track/' + id +
-      '" allow="encrypted-media; autoplay"></iframe>';
-    return;
-  }
-  if(!ctrl){
-    api.createController($("embed"), {uri, width:"100%", height:152}, c => {
-      ctrl = c;
-      ctrl.addListener("ready", () => { if(wantPlay) startPlay(); });
-      // Spotify 會記住上次進度；開始播放後若不在開頭，就跳回 0 秒（只修正一次）
-      ctrl.addListener("playback_update", e => {
-        const d = e && e.data;
-        if(fixStart && d && !d.isPaused){
-          fixStart = false;
-          if(d.position > 1500){ try{ ctrl.seek(0); }catch(err){} }
-        }
-      });
-      setTimeout(startPlay, 800);
-    });
-  } else {
-    ctrl.loadUri(uri);
-    setTimeout(startPlay, 800);
-  }
-}
-
 function play(text){
   const id = extractTrackId(text);
   if(!id){ msg("讀到的內容不是 Spotify 歌曲連結：" + text.slice(0,80)); return false; }
-  msg("");
-  loadTrack(id);
+  msg("正在播放…");
+  playTrack(id);
   const info = $("info"), s = SONGS[id];
   info.hidden = false;
   if(s){
@@ -145,6 +198,8 @@ $("scanBtn").onclick = async () => {
   };
   tick();
 };
+
+(async () => { await handleRedirect(); renderAuth(); })();
 </script>
 </body>
 </html>

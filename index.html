@@ -31,6 +31,7 @@ video{width:100%;border-radius:8px;display:none;background:#000;margin-top:8px}
 
 <div class="box"><button id="pauseBtn">⏸ 暫停</button> <button id="resumeBtn">▶ 繼續</button> <button id="fsBtn">⛶ 全螢幕</button></div>
 <div id="msg"></div>
+<pre id="diag" style="white-space:pre-wrap;word-break:break-all;font-size:12px;opacity:.75;margin:8px 0"></pre>
 <div id="info" class="box" hidden></div>
 
 <div class="box">
@@ -139,10 +140,12 @@ async function spot(path, opt){
     {...opt, headers:{Authorization:"Bearer " + t, "Content-Type":"application/json"}});
 }
 
-let deviceId = null, latestId = null;
+const diag = t => { $("diag").textContent = t; };
+let deviceId = null, latestId = null, devInfo = "";
 
 async function pickDevice(){
   const list = (await (await spot("/me/player/devices")).json()).devices || [];
+  devInfo = list.map(d => d.name + "／" + d.type + (d.is_active ? "／使用中" : "")).join("；");
   const dev = list.find(x => x.type === "Smartphone" && x.is_active) ||
               list.find(x => x.type === "Smartphone") ||
               list.find(x => x.is_active) || list[0];
@@ -157,16 +160,20 @@ function sendPlay(id){
 
 async function playTrack(id){
   latestId = id;
-  let r;
+  let r, trail = "掃到：" + id + "\n";
   try{
     if(!deviceId) await pickDevice();
+    trail += "裝置：" + (devInfo || "無") + "\n";
     r = await sendPlay(id);
+    trail += "播放指令回應：" + r.status + "\n";
     if(r.status === 404){
       await pickDevice();
       if(!deviceId){ msg("找不到 Spotify 裝置。請先打開手機的 Spotify APP，隨便播一首歌，再重新掃描。"); return; }
       r = await sendPlay(id);
+      trail += "重試回應：" + r.status + "\n";
     }
   }catch(e){ handleErr(e); return; }
+  diag(trail);
 
   if(!r.ok){
     let detail = "";
@@ -177,21 +184,34 @@ async function playTrack(id){
     else msg("播放失敗（" + r.status + "）" + detail);
     return;
   }
-  setTimeout(() => verify(id), 1500);
+  setTimeout(() => verify(id, trail, 0), 1500);
 }
 
-// 播放後向 Spotify 確認實際在播的歌；不一致就重送一次
-async function verify(id){
+// 播放後向 Spotify 確認實際在播的歌；不一致就改用「加入佇列＋下一首」重試一次
+async function verify(id, trail, attempt){
   if(latestId !== id) return;          // 已經掃了下一張，不用管這一筆
   try{
     const r = await spot("/me/player", {method:"GET"});
-    if(r.status !== 200) return;
-    const j = await r.json();
     if(latestId !== id) return;
-    if(j.item && j.item.id === id){ msg("播放中 ▶（Spotify：" + j.item.name + "）"); return; }
-    const r2 = await sendPlay(id);
-    msg(r2.ok ? "已重新送出播放指令（Spotify 原本播放：" + (j.item ? j.item.name : "無") + "）"
-              : "Spotify 播放的歌與掃到的不同（" + r2.status + "）");
+    if(r.status !== 200){ diag(trail + "查詢播放狀態：" + r.status); return; }
+    const j = await r.json();
+    const it = j.item || {};
+    const dis = Object.keys((j.actions && j.actions.disallows) || {}).join(",") || "無";
+    const info = trail + "Spotify 實際播放：" + (it.name || "無") + "（" + (it.id || "-") + "）\n" +
+      "裝置：" + (j.device ? j.device.name + "／" + j.device.type : "無") +
+      "；播放中：" + j.is_playing + "；進度：" + j.progress_ms + "ms\n限制：" + dis;
+    const same = it.id === id || (it.linked_from && it.linked_from.id === id);
+    if(same){ diag(info); msg("播放中 ▶（Spotify：" + it.name + "）"); return; }
+    if(attempt === 0){
+      diag(info + "\n→ 與掃到的不同，改用「加入佇列＋下一首」重試…");
+      const dq = deviceId ? "&device_id=" + deviceId : "";
+      await spot("/me/player/queue?uri=" + encodeURIComponent("spotify:track:" + id) + dq, {method:"POST"});
+      await spot("/me/player/next" + (deviceId ? "?device_id=" + deviceId : ""), {method:"POST"});
+      setTimeout(() => verify(id, info + "\n（已重試）\n", 1), 1800);
+    } else {
+      diag(info);
+      msg("Spotify 沒有切換到掃到的歌。請把整個畫面截圖。");
+    }
   }catch(e){}
 }
 

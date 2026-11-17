@@ -139,27 +139,60 @@ async function spot(path, opt){
     {...opt, headers:{Authorization:"Bearer " + t, "Content-Type":"application/json"}});
 }
 
-async function playTrack(id){
-  const body = JSON.stringify({uris:["spotify:track:" + id], position_ms:0});
-  let r;
-  try{ r = await spot("/me/player/play", {method:"PUT", body}); }
-  catch(e){ handleErr(e); return; }
+let deviceId = null, latestId = null;
 
-  if(r.status === 404){
-    // 沒有使用中的裝置：改找手機上的 Spotify APP 來播
-    let list = [];
-    try{ list = (await (await spot("/me/player/devices")).json()).devices || []; }catch(e){}
-    const dev = list.find(x => x.type === "Smartphone") || list[0];
-    if(!dev){ msg("找不到 Spotify 裝置。請先打開手機的 Spotify APP，隨便播一首歌，再重新掃描。"); return; }
-    r = await spot("/me/player/play?device_id=" + dev.id, {method:"PUT", body});
+async function pickDevice(){
+  const list = (await (await spot("/me/player/devices")).json()).devices || [];
+  const dev = list.find(x => x.type === "Smartphone" && x.is_active) ||
+              list.find(x => x.type === "Smartphone") ||
+              list.find(x => x.is_active) || list[0];
+  deviceId = dev ? dev.id : null;
+  return dev;
+}
+
+function sendPlay(id){
+  const body = JSON.stringify({uris:["spotify:track:" + id], position_ms:0});
+  return spot("/me/player/play" + (deviceId ? "?device_id=" + deviceId : ""), {method:"PUT", body});
+}
+
+async function playTrack(id){
+  latestId = id;
+  let r;
+  try{
+    if(!deviceId) await pickDevice();
+    r = await sendPlay(id);
+    if(r.status === 404){
+      await pickDevice();
+      if(!deviceId){ msg("找不到 Spotify 裝置。請先打開手機的 Spotify APP，隨便播一首歌，再重新掃描。"); return; }
+      r = await sendPlay(id);
+    }
+  }catch(e){ handleErr(e); return; }
+
+  if(!r.ok){
+    let detail = "";
+    try{ detail = (await r.json()).error.message || ""; }catch(e){}
+    if(r.status === 401) authLost();
+    else if(r.status === 403) msg("Spotify 拒絕了這個請求（" + detail + "）。請確認帳號是 Premium，且已加入 User Management。");
+    else if(r.status === 429) msg("請求太頻繁，請稍等幾秒再掃。");
+    else msg("播放失敗（" + r.status + "）" + detail);
+    return;
   }
-  if(r.ok){ msg("播放中 ▶"); return; }
-  let detail = "";
-  try{ detail = (await r.json()).error.message || ""; }catch(e){}
-  if(r.status === 401) authLost();
-  else if(r.status === 403) msg("Spotify 拒絕了這個請求（" + detail + "）。請確認帳號是 Premium，且已加入 User Management。");
-  else if(r.status === 429) msg("請求太頻繁，請稍等幾秒再掃。");
-  else msg("播放失敗（" + r.status + "）" + detail);
+  setTimeout(() => verify(id), 1500);
+}
+
+// 播放後向 Spotify 確認實際在播的歌；不一致就重送一次
+async function verify(id){
+  if(latestId !== id) return;          // 已經掃了下一張，不用管這一筆
+  try{
+    const r = await spot("/me/player", {method:"GET"});
+    if(r.status !== 200) return;
+    const j = await r.json();
+    if(latestId !== id) return;
+    if(j.item && j.item.id === id){ msg("播放中 ▶（Spotify：" + j.item.name + "）"); return; }
+    const r2 = await sendPlay(id);
+    msg(r2.ok ? "已重新送出播放指令（Spotify 原本播放：" + (j.item ? j.item.name : "無") + "）"
+              : "Spotify 播放的歌與掃到的不同（" + r2.status + "）");
+  }catch(e){}
 }
 
 async function ctl(path, okText){
@@ -188,7 +221,7 @@ function extractTrackId(text){
 function play(text){
   const id = extractTrackId(text);
   if(!id){ msg("讀到的內容不是 Spotify 歌曲連結：" + text.slice(0,80)); return false; }
-  msg("正在播放…");
+  msg("正在播放…（卡片編號尾碼 " + id.slice(-4) + "）");
   playTrack(id);
   const info = $("info"), s = SONGS[id];
   info.hidden = false;

@@ -1,3 +1,9 @@
 # 每行格式：Spotify連結 | 歌名 | 歌手 | 年份（年份請填歌曲首次發行的年份）
 # 以 # 開頭的行會被忽略
-https://open.spotify.com/track/2R6LkVSDceO8F6eDLQZJBT | 微笑みの爆弾 | 馬渡松子 | 1992年
+https://open.spotify.com/track/2R6LkVSDceO8F6eDLQZJBT | 微笑的爆彈 | 幽遊白書 | 1992
+https://open.spotify.com/track/1SHcNgZm35QN3LZb0A5QTB?si=5ba3a81611994add | 早安 | 獵人 | 2000
+https://open.spotify.com/track/4A3G4Chh8DTJftwJEf5tOp?si=1a49827bb6f74594 | Butter-Fly | 數碼寶貝 | 1999
+https://open.spotify.com/track/0tL5rPWiY8RkuMBQ8MMf2O?si=959736680fa84447 | 目標是寶可夢大師 | 神奇寶貝 | 1997
+https://open.spotify.com/track/45tD5FiRiU91ya2H62j8cL?si=a541bf165fef42ef | 殘酷天使的行動綱領 | 新世紀福音戰士 | 1995
+
+

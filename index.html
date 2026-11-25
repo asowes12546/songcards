@@ -45,7 +45,7 @@ video{width:100%;border-radius:8px;display:none;background:#000;margin-top:8px}
 const CLIENT_ID = "363209014a5b4083a42c931a67e4d726";
 const REDIRECT = "https://asowes12546.github.io/songcards/";
 const SCOPES = "user-modify-playback-state user-read-playback-state";
-// 歌單從 songs.txt 載入，每行格式：Spotify連結 | 歌名 | 歌手 | 年份
+// 歌單從 songs.txt 載入，每行格式：Spotify連結 | 動畫名稱 | 台灣首播年份
 const SONGS = {};
 async function loadSongs(){
   try{
@@ -54,7 +54,10 @@ async function loadSongs(){
     (await r.text()).split(/\r?\n/).forEach(line => {
       const p = line.split("|").map(x => x.trim());
       const id = extractTrackId(p[0] || "");
-      if(id && p.length >= 4) SONGS[id] = {title:p[1], artist:p[2], year:p[3]};
+      if(!id) return;
+      // 新格式：連結 | 動畫名稱 | 年份　　舊格式：連結 | 歌名 | 歌手 | 年份
+      if(p.length === 3) SONGS[id] = {title:p[1], artist:"", year:p[2]};
+      else if(p.length >= 4) SONGS[id] = {title:p[1], artist:p[2], year:p[3]};
     });
   }catch(e){}
 }
@@ -258,8 +261,8 @@ function play(text){
   const info = $("info"), s = SONGS[id];
   info.hidden = false;
   if(s){
-    info.innerHTML = '<button id="reveal">揭曉年份</button><div id="ans" hidden>' +
-      s.title + '／' + s.artist + '／<b>' + s.year + '</b></div>';
+    info.innerHTML = '<button id="reveal">揭曉答案</button><div id="ans" hidden>' +
+      [s.title, s.artist].filter(Boolean).join('／') + '／<b>' + s.year + '</b></div>';
     $("reveal").onclick = () => $("ans").hidden = false;
   } else {
     info.textContent = "這首歌還沒登錄在歌單裡（曲目 ID：" + id + "）";

@@ -3,111 +3,151 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>猜歌卡片掃描</title>
+<meta name="theme-color" content="#0a0614">
+<title>Hitster 動畫擴充</title>
 <style>
-:root{--bg:#fff;--fg:#1a1a1a;--card:#f2f2f2;--accent:#1db954;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121212;--fg:#f0f0f0;--card:#242424}}
-:root[data-theme="dark"]{--bg:#121212;--fg:#f0f0f0;--card:#242424}
-body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font-family:system-ui,"Noto Sans TC",sans-serif;max-width:520px;margin-inline:auto}
-h1{font-size:20px}
-button,input{font:inherit;padding:10px 14px;border-radius:8px;border:1px solid #8886}
-button{background:var(--accent);color:#000;border:0;cursor:pointer}
-input{width:100%;box-sizing:border-box;background:var(--card);color:var(--fg);margin:6px 0}
-.box{background:var(--card);border-radius:12px;padding:12px;margin:12px 0}
-video{width:100%;border-radius:8px;display:none;background:#000;margin-top:8px}
-#msg{min-height:1.4em;font-size:15px}
+:root{--pink:#ff2d95;--cyan:#35c8ff;--orange:#ffa21a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:#07040d;color:#fff;font-family:system-ui,"Noto Sans TC","Microsoft JhengHei",sans-serif;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+.scr{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;padding:max(14px,env(safe-area-inset-top)) 20px max(16px,env(safe-area-inset-bottom));background:radial-gradient(120% 70% at 50% 100%,#3a1458 0%,#14091f 55%,#07040d 100%)}
+.scr.on{display:flex}
+.title{margin-top:6px;padding:2px 28px 6px;border:2px solid var(--pink);border-radius:18px;font-size:clamp(34px,11.5vw,52px);font-weight:300;letter-spacing:.06em;color:#ffd6ec;text-shadow:0 0 6px var(--pink),0 0 18px var(--pink);box-shadow:0 0 16px #ff2d9566,inset 0 0 14px #ff2d9544}
+.pill{margin:12px 0 10px;padding:6px 20px;border:2px solid var(--cyan);border-radius:14px;font-size:17px;text-shadow:0 0 8px var(--cyan);box-shadow:0 0 12px #35c8ff55,inset 0 0 10px #35c8ff33}
+#vinyl{flex:1;min-height:0;width:100%;max-width:420px}
+.main{width:100%;max-width:420px;height:58px;border:0;border-radius:18px;background:linear-gradient(#ff4aae,var(--pink));font-size:20px;font-weight:700;box-shadow:0 0 28px #ff2d9577;transition:transform .08s}
+.main:active{transform:scale(.98)}
+.main:disabled{background:#3a2a46;box-shadow:none;color:#9a8aa8}
+.row{display:flex;gap:12px;width:100%;max-width:420px;margin-top:12px}
+.side,.sq{height:54px;border-radius:16px;border:2px solid #ffffff55;background:#ffffff14}
+.side{flex:1;display:flex;align-items:center;gap:12px;padding:0 14px;font-size:17px;text-align:left}
+.sq{width:54px;flex:none;display:grid;place-items:center}
+.chk{width:24px;height:24px;border:2px solid #fff;border-radius:6px;display:grid;place-items:center;flex:none}
+.chk.ok{background:var(--pink);border-color:var(--pink)}
+.msg{min-height:1.4em;margin-top:8px;font-size:14px;text-align:center;opacity:.9}
+#B{padding:0;background:#000}
+#v{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#fr{position:absolute;left:50%;top:44%;width:min(74vw,58vh);aspect-ratio:1;transform:translate(-50%,-50%);box-shadow:0 0 0 200vmax #0009}
+#fr i{position:absolute;width:15%;height:15%;border:3px solid #fff;filter:drop-shadow(0 0 6px var(--pink))}
+#fr i:nth-child(1){left:-3px;top:-3px;border-right:0;border-bottom:0}
+#fr i:nth-child(2){right:-3px;top:-3px;border-left:0;border-bottom:0}
+#fr i:nth-child(3){left:-3px;bottom:-3px;border-right:0;border-top:0}
+#fr i:nth-child(4){right:-3px;bottom:-3px;border-left:0;border-top:0}
+#x{position:absolute;top:max(14px,env(safe-area-inset-top));right:16px;width:46px;height:46px;border:0;border-radius:50%;background:#0008;font-size:26px;line-height:1}
+#msgB{position:absolute;left:0;right:0;bottom:12%;padding:0 24px;text-align:center;text-shadow:0 1px 6px #000}
+#C{background:linear-gradient(160deg,#5b2a78,#2a1450 50%,#1a0b33)}
+#cardwrap{flex:1;min-height:0;width:100%;display:grid;place-items:center}
+#card{width:min(88vw,52vh);aspect-ratio:1;box-shadow:0 12px 40px #0008}
+#card svg{width:100%;height:100%;display:block}
+#pp{transition:transform .1s;transform-origin:32.5px 32.5px;cursor:pointer}
+#pp:active{transform:scale(.92)}
 </style>
 </head>
 <body>
-<h1>🎵 猜歌卡片掃描</h1>
 
-<div class="box" id="authBox"></div>
+<section id="A" class="scr on">
+  <div class="title">Hitster</div>
+  <div class="pill">動畫擴充</div>
+  <svg id="vinyl" viewBox="0 0 300 300" aria-hidden="true"></svg>
+  <button id="start" class="main" disabled>立即開始</button>
+  <div class="row">
+    <button id="sp" class="side"><span id="chk" class="chk"></span><span id="spt">已開啟 Spotify</span></button>
+    <button id="fs" class="sq" aria-label="全螢幕">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6"/></svg>
+    </button>
+  </div>
+  <div id="msgA" class="msg"></div>
+</section>
 
-<div class="box">
-  <button id="scanBtn">開啟鏡頭掃描 QR code</button>
-  <video id="video" playsinline muted></video>
-  <canvas id="canvas" hidden></canvas>
-</div>
+<section id="B" class="scr">
+  <video id="v" playsinline muted></video>
+  <div id="fr"><i></i><i></i><i></i><i></i></div>
+  <button id="x" aria-label="返回首頁">✕</button>
+  <div id="msgB"></div>
+</section>
 
-<div class="box"><button id="pauseBtn">⏸ 暫停</button> <button id="resumeBtn">▶ 繼續</button> <button id="fsBtn">⛶ 全螢幕</button></div>
-<div id="msg"></div>
-<pre id="diag" style="white-space:pre-wrap;word-break:break-all;font-size:12px;opacity:.75;margin:8px 0"></pre>
-<div id="info" class="box" hidden></div>
-
-<div class="box">
-  <div>掃不到時，可以貼 Spotify 歌曲連結測試：</div>
-  <input id="link" placeholder="https://open.spotify.com/track/…">
-  <button id="playBtn">播放</button>
-</div>
+<section id="C" class="scr">
+  <div id="cardwrap"><div id="card"></div></div>
+  <div id="msgC" class="msg"></div>
+  <button id="next" class="main">下一張卡牌 →</button>
+</section>
 
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
 const CLIENT_ID = "363209014a5b4083a42c931a67e4d726";
 const REDIRECT = "https://asowes12546.github.io/songcards/";
 const SCOPES = "user-modify-playback-state user-read-playback-state";
-// 歌單從 songs.txt 載入，每行格式：Spotify連結 | 動畫名稱 | 台灣首播年份
-const SONGS = {};
-async function loadSongs(){
-  try{
-    const r = await fetch("songs.txt?t=" + Date.now());
-    if(!r.ok) return;
-    (await r.text()).split(/\r?\n/).forEach(line => {
-      const p = line.split("|").map(x => x.trim());
-      const id = extractTrackId(p[0] || "");
-      if(!id) return;
-      // 新格式：連結 | 動畫名稱 | 年份　　舊格式：連結 | 歌名 | 歌手 | 年份
-      if(p.length === 3) SONGS[id] = {title:p[1], artist:"", year:p[2]};
-      else if(p.length >= 4) SONGS[id] = {title:p[1], artist:p[2], year:p[3]};
-    });
-  }catch(e){}
-}
+// 與實體卡背面相同的圓弧（半徑 mm、圓心偏移、顏色、[起始角, 角度]）
+const RINGS = [[19.8,0,0.25,"#ffe600",[[343.7,69.6],[104.4,86.5],[260.3,77.1]]],[21.42,0.21,-0.14,"#1e8fff",[[18.6,106.8],[233.2,86.4]]],[23.03,-0.05,-0.02,"#e8336e",[[17,118.5],[216.9,84.7]]],[24.65,-0.13,0.12,"#8f45ad",[[74.1,83.8],[183.3,98.2]]],[26.27,0.05,-0.1,"#ffe600",[[250.4,114.3],[78.6,87.1]]],[27.88,0.06,0.03,"#1e8fff",[[138.2,113.5],[333.7,84.5]]],[29.5,-0.02,0.01,"#e8336e",[[323.7,72.4],[52.6,68.3],[205.7,61.1]]]];
 
 const $ = id => document.getElementById(id);
-const msg = t => $("msg").textContent = t;
+let cur = "A";
+const show = id => { cur = id; document.querySelectorAll(".scr").forEach(s => s.classList.toggle("on", s.id === id)); };
+const note = t => { const e = $("msg" + cur); if(e) e.textContent = t; };
 const store = {
   get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
   set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
   del(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
 
-/* ---------- Spotify 授權（PKCE，不需要後端） ---------- */
-const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf)))
-  .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+/* ---------- 畫面上的圖形 ---------- */
+(function drawVinyl(){
+  const P = (r,a) => [150 + r*Math.cos(a*Math.PI/180), 150 + r*Math.sin(a*Math.PI/180)];
+  const arc = (r,a0,a1) => { const [x0,y0] = P(r,a0), [x1,y1] = P(r,a1); return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)}A${r} ${r} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}"/>`; };
+  $("vinyl").innerHTML =
+    '<g fill="none" stroke-linecap="round" stroke-width="6">' +
+    '<rect x="12" y="12" width="276" height="276" rx="46" stroke="#ffa21a" stroke-width="7" style="filter:drop-shadow(0 0 7px #ffa21a)"/>' +
+    '<g stroke="#ff58d8" style="filter:drop-shadow(0 0 7px #ff58d8)">' +
+    '<circle cx="150" cy="150" r="118"/><circle cx="150" cy="150" r="42"/><circle cx="150" cy="150" r="9"/>' +
+    arc(96,196,252) + arc(74,200,250) + arc(96,16,72) + arc(74,20,70) + '</g></g>';
+})();
 
+function cardSVG(){
+  let g = "";
+  for(const [r,ox,oy,col,arcs] of RINGS){
+    const cx = 32.5 + ox, cy = 32.5 - oy;
+    for(const [a,s] of arcs){
+      const p = t => [cx + r*Math.cos(t*Math.PI/180), cy - r*Math.sin(t*Math.PI/180)];
+      const [x0,y0] = p(a), [x1,y1] = p(a + s);
+      g += `<path d="M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 0 0 ${x1.toFixed(2)} ${y1.toFixed(2)}" stroke="${col}"/>`;
+    }
+  }
+  return `<svg viewBox="0 0 65 65"><rect width="65" height="65" fill="#0d0d0d"/><g fill="none" stroke-width="1" stroke-linecap="round">${g}</g>` +
+    `<g id="pp"><circle cx="32.5" cy="32.5" r="8" fill="#fff"/><g id="ico"></g><circle cx="32.5" cy="32.5" r="13" fill="none" pointer-events="all"/></g></svg>`;
+}
+$("card").innerHTML = cardSVG();
+const PAUSE_ICON = '<rect x="29.4" y="28.4" width="2.3" height="8.2" rx="1" fill="#000"/><rect x="33.3" y="28.4" width="2.3" height="8.2" rx="1" fill="#000"/>';
+const PLAY_ICON = '<path d="M30.8 28.2v8.6l7-4.3z" fill="#000" stroke="#000" stroke-width=".8" stroke-linejoin="round"/>';
+let playing = false;
+const setIcon = () => { $("ico").innerHTML = playing ? PAUSE_ICON : PLAY_ICON; };
+setIcon();
+
+/* ---------- Spotify 授權（PKCE，不需要後端） ---------- */
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 async function login(){
   const verifier = b64u(crypto.getRandomValues(new Uint8Array(48)));
   store.set("verifier", verifier);
   const challenge = b64u(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
-  const p = new URLSearchParams({client_id:CLIENT_ID, response_type:"code", redirect_uri:REDIRECT,
-    scope:SCOPES, code_challenge_method:"S256", code_challenge:challenge});
-  location.href = "https://accounts.spotify.com/authorize?" + p;
+  location.href = "https://accounts.spotify.com/authorize?" + new URLSearchParams({client_id:CLIENT_ID, response_type:"code",
+    redirect_uri:REDIRECT, scope:SCOPES, code_challenge_method:"S256", code_challenge:challenge});
 }
-
 async function tokenReq(params){
-  const r = await fetch("https://accounts.spotify.com/api/token", {
-    method:"POST",
-    headers:{"Content-Type":"application/x-www-form-urlencoded"},
-    body:new URLSearchParams({client_id:CLIENT_ID, ...params})
-  });
+  const r = await fetch("https://accounts.spotify.com/api/token", {method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"}, body:new URLSearchParams({client_id:CLIENT_ID, ...params})});
   const j = await r.json();
   if(!r.ok) throw new Error(j.error_description || j.error || r.status);
   store.set("at", j.access_token);
   store.set("exp", String(Date.now() + j.expires_in*1000 - 60000));
   if(j.refresh_token) store.set("rt", j.refresh_token);
 }
-
 async function handleRedirect(){
-  const q = new URLSearchParams(location.search);
-  const code = q.get("code"), err = q.get("error");
+  const q = new URLSearchParams(location.search), code = q.get("code"), err = q.get("error");
   if(!code && !err) return;
   history.replaceState(null, "", REDIRECT);
-  if(err){ msg("授權失敗：" + err); return; }
-  try{
-    await tokenReq({grant_type:"authorization_code", code, redirect_uri:REDIRECT,
-      code_verifier:store.get("verifier") || ""});
-  }catch(e){ msg("登入失敗：" + e.message); }
+  if(err){ note("授權失敗：" + err); return; }
+  try{ await tokenReq({grant_type:"authorization_code", code, redirect_uri:REDIRECT, code_verifier:store.get("verifier") || ""}); }
+  catch(e){ note("登入失敗：" + e.message); }
 }
-
 async function getToken(){
   if(!store.get("at")) return null;
   if(Date.now() > Number(store.get("exp") || 0)){
@@ -118,198 +158,175 @@ async function getToken(){
   }
   return store.get("at");
 }
-
 function authLost(){
   ["at","rt","exp"].forEach(k => store.del(k));
-  renderAuth();
-  msg("登入已失效，請重新按「連接 Spotify」。");
+  stopScan(); show("A"); refreshSpotify();
+  note("登入已失效，請重新連接 Spotify。");
 }
-function handleErr(e){
-  if(e && e.message === "net") msg("網路不穩，請稍後再試一次。");
-  else authLost();
+const handleErr = e => (e && e.message === "net") ? note("網路不穩，請稍後再試一次。") : authLost();
+
+/* ---------- 首頁：Spotify 狀態、全螢幕、開始 ---------- */
+let spOK = false;
+function renderRow(state){          // auth＝尚未授權、off＝找不到手機上的 Spotify、ok＝可用
+  spOK = state === "ok";
+  $("chk").className = "chk" + (spOK ? " ok" : "");
+  $("chk").innerHTML = spOK ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg>' : "";
+  $("spt").textContent = state === "auth" ? "先連接 Spotify（授權）" : "已開啟 Spotify";
+  $("start").disabled = !spOK;
 }
-
-function renderAuth(){
-  const ok = !!store.get("at");
-  $("authBox").innerHTML = ok ? "✅ 已連接 Spotify" : '<button id="loginBtn">連接 Spotify</button>';
-  if(!ok) $("loginBtn").onclick = login;
+async function refreshSpotify(){
+  let t = null;
+  try{ t = await getToken(); }catch(e){}
+  if(!t){ renderRow("auth"); return; }
+  try{ const d = await pickDevice(); renderRow(d && d.type === "Smartphone" ? "ok" : "off"); }
+  catch(e){ renderRow("off"); }
 }
+$("sp").onclick = () => {
+  if(!store.get("at")) return login();
+  if(spOK) return;
+  note("正在開啟 Spotify…開啟後請切回這個畫面。");
+  location.href = "intent://#Intent;scheme=spotify;package=com.spotify.music;end";
+  setTimeout(() => { if(!document.hidden) note("沒有自動開啟？請手動打開 Spotify APP，再切回來。"); }, 1800);
+};
+document.addEventListener("visibilitychange", () => { if(!document.hidden){ if(cur === "A") refreshSpotify(); lock(); } });
 
-/* ---------- 播放 ---------- */
-async function spot(path, opt){
-  const t = await getToken();
-  if(!t) throw new Error("auth");
-  return fetch("https://api.spotify.com/v1" + path,
-    {...opt, headers:{Authorization:"Bearer " + t, "Content-Type":"application/json"}});
+let wl = null;
+async function lock(){
+  try{ if(navigator.wakeLock && !wl){ wl = await navigator.wakeLock.request("screen"); wl.addEventListener("release", () => wl = null); } }catch(e){}
 }
-
-const diag = t => { $("diag").textContent = t; };
-let deviceId = null, latestId = null, devInfo = "";
-const dq = first => deviceId ? (first ? "?" : "&") + "device_id=" + deviceId : "";
-
-async function pickDevice(){
-  const list = (await (await spot("/me/player/devices")).json()).devices || [];
-  devInfo = list.map(d => d.name + "／" + d.type + (d.is_active ? "／使用中" : "")).join("；");
-  const dev = list.find(x => x.type === "Smartphone" && x.is_active) ||
-              list.find(x => x.type === "Smartphone") ||
-              list.find(x => x.is_active) || list[0];
-  deviceId = dev ? dev.id : null;
-  return dev;
-}
-
-function sendPlay(id){
-  const body = JSON.stringify({uris:["spotify:track:" + id], position_ms:0});
-  return spot("/me/player/play" + dq(true), {method:"PUT", body});
-}
-
-// 主要做法：加入佇列再跳下一首（實測比直接指定曲目可靠），最後補一個「繼續播放」確保不是暫停狀態
-async function queueNext(id){
-  let r = await spot("/me/player/queue?uri=" + encodeURIComponent("spotify:track:" + id) + dq(false), {method:"POST"});
-  if(!r.ok) return r;
-  r = await spot("/me/player/next" + dq(true), {method:"POST"});
-  if(r.ok) await spot("/me/player/play" + dq(true), {method:"PUT"}).catch(() => {});
-  return r;
-}
-
-async function playTrack(id){
-  latestId = id;
-  let r, trail = "掃到：" + id + "\n";
-  try{
-    if(!deviceId) await pickDevice();
-    trail += "裝置：" + (devInfo || "無") + "\n";
-    r = await queueNext(id);
-    trail += "佇列＋下一首回應：" + r.status + "\n";
-    if(r.status === 404){
-      await pickDevice();
-      if(!deviceId){ msg("找不到 Spotify 裝置。請先打開手機的 Spotify APP，隨便播一首歌，再重新掃描。"); return; }
-      r = await queueNext(id);
-      trail += "重試回應：" + r.status + "\n";
-    }
-    if(!r.ok && ![401, 403, 429].includes(r.status)){
-      r = await sendPlay(id);
-      trail += "改用直接播放：" + r.status + "\n";
-    }
-  }catch(e){ handleErr(e); return; }
-  diag(trail);
-
-  if(!r.ok){
-    let detail = "";
-    try{ detail = (await r.json()).error.message || ""; }catch(e){}
-    if(r.status === 401) authLost();
-    else if(r.status === 403) msg("Spotify 拒絕了這個請求（" + detail + "）。請確認帳號是 Premium，且已加入 User Management。");
-    else if(r.status === 429) msg("請求太頻繁，請稍等幾秒再掃。");
-    else msg("播放失敗（" + r.status + "）" + detail);
-    return;
+$("fs").onclick = () => {
+  if(document.fullscreenElement) document.exitFullscreen();
+  else if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => note("無法進入全螢幕。"));
+};
+$("start").onclick = async () => {
+  if(!spOK) return;
+  const de = document.documentElement;
+  if(!document.fullscreenElement && de.requestFullscreen){
+    try{ await de.requestFullscreen(); }
+    catch(e){ note("請先允許全螢幕再開始（避免上方通知列顯示歌名）。"); return; }
   }
-  setTimeout(() => verify(id, trail, 0), 1500);
-}
-
-// 播放後向 Spotify 確認實際在播的歌；不一致就改用「直接指定曲目播放」重試一次
-async function verify(id, trail, attempt){
-  if(latestId !== id) return;          // 已經掃了下一張，不用管這一筆
-  try{
-    const r = await spot("/me/player", {method:"GET"});
-    if(latestId !== id) return;
-    if(r.status !== 200){ diag(trail + "查詢播放狀態：" + r.status); return; }
-    const j = await r.json();
-    const it = j.item || {};
-    const dis = Object.keys((j.actions && j.actions.disallows) || {}).join(",") || "無";
-    const info = trail + "Spotify 實際播放：" + (it.name || "無") + "（" + (it.id || "-") + "）\n" +
-      "裝置：" + (j.device ? j.device.name + "／" + j.device.type : "無") +
-      "；播放中：" + j.is_playing + "；進度：" + j.progress_ms + "ms\n限制：" + dis;
-    const same = it.id === id || (it.linked_from && it.linked_from.id === id);
-    if(same){ diag(info); msg("播放中 ▶（Spotify：" + it.name + "）"); return; }
-    if(attempt === 0){
-      diag(info + "\n→ 與掃到的不同，改用直接播放重試…");
-      await sendPlay(id);
-      setTimeout(() => verify(id, info + "\n（已重試）\n", 1), 1800);
-    } else {
-      diag(info);
-      msg("Spotify 沒有切換到掃到的歌。請把整個畫面截圖。");
-    }
-  }catch(e){}
-}
-
-async function ctl(path, okText){
-  try{
-    const r = await spot(path, {method:"PUT"});
-    if(r.ok) msg(okText); else msg("操作失敗（" + r.status + "）");
-  }catch(e){ handleErr(e); }
-}
-$("pauseBtn").onclick = () => ctl("/me/player/pause", "已暫停 ⏸");
-$("resumeBtn").onclick = () => ctl("/me/player/play", "播放中 ▶");
-$("fsBtn").onclick = () => {
-  if(document.fullscreenElement){ document.exitFullscreen(); return; }
-  const d = document.documentElement;
-  if(d.requestFullscreen) d.requestFullscreen().catch(() => msg("無法進入全螢幕。"));
-  else msg("這個瀏覽器不支援全螢幕。");
+  lock(); show("B"); startScan();
 };
 
-/* ---------- 掃描與顯示 ---------- */
+/* ---------- 掃描（只辨識取景框內的區域） ---------- */
 function extractTrackId(text){
   let m = text.match(/open\.spotify\.com\/(?:intl-[a-z-]+\/)?track\/([A-Za-z0-9]{22})/);
   if(m) return m[1];
   m = text.match(/spotify:track:([A-Za-z0-9]{22})/);
   return m ? m[1] : null;
 }
-
-function play(text){
-  const id = extractTrackId(text);
-  if(!id){ msg("讀到的內容不是 Spotify 歌曲連結：" + text.slice(0,80)); return false; }
-  msg("正在播放…（卡片編號尾碼 " + id.slice(-4) + "）");
-  playTrack(id);
-  const info = $("info"), s = SONGS[id];
-  info.hidden = false;
-  if(s){
-    info.innerHTML = '<button id="reveal">揭曉答案</button><div id="ans" hidden>' +
-      [s.title, s.artist].filter(Boolean).join('／') + '／<b>' + s.year + '</b></div>';
-    $("reveal").onclick = () => $("ans").hidden = false;
-  } else {
-    info.textContent = "這首歌還沒登錄在歌單裡（曲目 ID：" + id + "）";
-  }
-  $("scanBtn").textContent = "掃描下一張";
-  return true;
-}
-
-$("playBtn").onclick = () => play($("link").value.trim());
-
-let stream = null, scanning = false;
-$("scanBtn").onclick = async () => {
+const roi = document.createElement("canvas"), rctx = roi.getContext("2d", {willReadFrequently:true});
+let stream = null, scanning = false, lastT = 0;
+async function startScan(){
   if(scanning) return;
-  latestId = null;   // 取消上一首尚未完成的驗證
-  spot("/me/player/pause" + dq(true), {method:"PUT"}).catch(() => {});   // 立刻停掉上一首
+  note("請把卡片的 QR code 放進框內");
+  try{ stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}, width:{ideal:1280}}}); }
+  catch(e){ note("無法開啟鏡頭（" + e.name + "）。請允許鏡頭權限。"); return; }
+  if(cur !== "B"){ stream.getTracks().forEach(t => t.stop()); stream = null; return; }
+  const v = $("v"); v.srcObject = stream;
+  try{ await v.play(); }catch(e){}
+  scanning = true; requestAnimationFrame(tick);
+}
+function stopScan(){
+  scanning = false;
+  if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+  $("v").srcObject = null;
+}
+function tick(t){
+  if(!scanning) return;
+  const v = $("v");
+  if(t - lastT > 110 && v.videoWidth){
+    lastT = t;
+    const vr = v.getBoundingClientRect(), fr = $("fr").getBoundingClientRect();
+    const s = Math.max(vr.width / v.videoWidth, vr.height / v.videoHeight);        // object-fit: cover 的縮放
+    const ox = (vr.width - v.videoWidth * s) / 2, oy = (vr.height - v.videoHeight * s) / 2;
+    const side = Math.min(fr.width * 1.12 / s, v.videoWidth, v.videoHeight);       // 比取景框略大一點，容許誤差
+    const cx = (fr.left + fr.width / 2 - vr.left - ox) / s, cy = (fr.top + fr.height / 2 - vr.top - oy) / s;
+    const sx = Math.max(0, Math.min(v.videoWidth - side, cx - side / 2)), sy = Math.max(0, Math.min(v.videoHeight - side, cy - side / 2));
+    const n = Math.min(640, Math.round(side));
+    roi.width = roi.height = n;
+    rctx.drawImage(v, sx, sy, side, side, 0, 0, n, n);
+    const code = jsQR(rctx.getImageData(0, 0, n, n).data, n, n);
+    if(code && code.data){
+      const id = extractTrackId(code.data);
+      if(id){ if(navigator.vibrate) navigator.vibrate(60); stopScan(); show("C"); playTrack(id); return; }
+      note("這不是歌曲卡片的 QR code");
+    }
+  }
+  requestAnimationFrame(tick);
+}
+$("x").onclick = () => { stopScan(); latestId = null; pauseNow(); show("A"); refreshSpotify(); };
+
+/* ---------- 播放（指定手機裝置；加入佇列＋下一首為主，直接指定曲目為備援） ---------- */
+let deviceId = null, latestId = null;
+const dq = first => deviceId ? (first ? "?" : "&") + "device_id=" + deviceId : "";
+async function spot(path, opt){
+  const t = await getToken();
+  if(!t) throw new Error("auth");
+  return fetch("https://api.spotify.com/v1" + path, {...opt, headers:{Authorization:"Bearer " + t, "Content-Type":"application/json"}});
+}
+async function pickDevice(){
+  const list = (await (await spot("/me/player/devices")).json()).devices || [];
+  const dev = list.find(x => x.type === "Smartphone" && x.is_active) || list.find(x => x.type === "Smartphone") ||
+              list.find(x => x.is_active) || list[0];
+  deviceId = dev ? dev.id : null;
+  return dev;
+}
+const sendPlay = id => spot("/me/player/play" + dq(true), {method:"PUT", body:JSON.stringify({uris:["spotify:track:" + id], position_ms:0})});
+async function queueNext(id){
+  let r = await spot("/me/player/queue?uri=" + encodeURIComponent("spotify:track:" + id) + dq(false), {method:"POST"});
+  if(!r.ok) return r;
+  r = await spot("/me/player/next" + dq(true), {method:"POST"});
+  if(r.ok) await spot("/me/player/play" + dq(true), {method:"PUT"}).catch(() => {});   // 確保不是暫停狀態
+  return r;
+}
+const pauseNow = () => spot("/me/player/pause" + dq(true), {method:"PUT"}).catch(() => {});
+
+async function playTrack(id){
+  latestId = id; playing = true; setIcon(); note("載入中…");
+  let r;
   try{
-    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
-  }catch(e){
-    msg("無法開啟鏡頭（" + e.name + "）。請確認網址是 https 並允許鏡頭權限。");
+    if(!deviceId) await pickDevice();
+    r = await queueNext(id);
+    if(r.status === 404){
+      await pickDevice();
+      if(!deviceId){ playing = false; setIcon(); note("找不到 Spotify 裝置，請回首頁確認 Spotify 已開啟。"); return; }
+      r = await queueNext(id);
+    }
+    if(!r.ok && ![401, 403, 429].includes(r.status)) r = await sendPlay(id);
+  }catch(e){ handleErr(e); return; }
+  if(!r.ok){
+    playing = false; setIcon();
+    if(r.status === 401) authLost();
+    else if(r.status === 403) note("Spotify 拒絕了請求，請確認帳號是 Premium 且已加入 User Management。");
+    else if(r.status === 429) note("請求太頻繁，請稍等幾秒再掃。");
+    else note("播放失敗（" + r.status + "）");
     return;
   }
-  const v = $("video");
-  v.srcObject = stream; v.style.display = "block";
-  await v.play();
-  scanning = true; msg("請把 QR code 對準鏡頭…");
-  const c = $("canvas"), ctx = c.getContext("2d", {willReadFrequently:true});
-  const tick = () => {
-    if(!scanning) return;
-    if(v.readyState === v.HAVE_ENOUGH_DATA){
-      c.width = v.videoWidth; c.height = v.videoHeight;
-      ctx.drawImage(v, 0, 0, c.width, c.height);
-      const img = ctx.getImageData(0, 0, c.width, c.height);
-      const code = jsQR(img.data, img.width, img.height);
-      if(code && code.data && play(code.data)){
-        scanning = false;
-        stream.getTracks().forEach(t => t.stop());
-        v.style.display = "none";
-        return;
-      }
-    }
-    requestAnimationFrame(tick);
-  };
-  tick();
-};
+  note("");
+  setTimeout(() => verify(id, 0), 1500);
+}
+async function verify(id, attempt){       // 向 Spotify 確認實際在播的歌，不一致就改用直接指定曲目重試一次
+  if(latestId !== id) return;
+  try{
+    const r = await spot("/me/player", {method:"GET"});
+    if(latestId !== id || r.status !== 200) return;
+    const it = (await r.json()).item || {};
+    if(it.id === id || (it.linked_from && it.linked_from.id === id)) return;
+    if(attempt === 0){ await sendPlay(id); setTimeout(() => verify(id, 1), 1800); }
+    else note("Spotify 沒有切換到這首歌，請再掃一次。");
+  }catch(e){}
+}
 
-loadSongs();
-(async () => { await handleRedirect(); renderAuth(); })();
+/* ---------- 播放畫面 ---------- */
+$("pp").onclick = async () => {
+  if(playing){ playing = false; setIcon(); pauseNow(); return; }
+  playing = true; setIcon();
+  try{ await spot("/me/player/play" + dq(true), {method:"PUT"}); }catch(e){ handleErr(e); }
+};
+$("next").onclick = () => { latestId = null; playing = false; setIcon(); pauseNow(); show("B"); startScan(); };
+
+(async () => { await handleRedirect(); refreshSpotify(); })();
 </script>
 </body>
 </html>
